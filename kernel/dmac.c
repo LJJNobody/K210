@@ -297,6 +297,9 @@ void dmac_init(void)
     writeq(tmp, &dmac->chen);
     /* disable all channel before configure */
     dmac_enable();
+    #ifdef DEBUG
+    printf("dmac_init\n");
+    #endif
 }
 
 void dmac_set_single_mode(dmac_channel_number_t channel_num,

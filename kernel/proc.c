@@ -55,7 +55,12 @@ procinit(void)
       initlock(&p->lock, "proc");
       p->state = UNUSED;
       p->kstack = KSTACK;
+      // p->kstack = KSTACK((int) (p - proc));
   }
+  memset(cpus, 0, sizeof(cpus));
+  #ifdef DEBUG
+  printf("procinit\n");
+  #endif
 }
 
 // Must be called with interrupts disabled,
@@ -232,6 +237,9 @@ uchar initcode[] = {
 void
 userinit(void)
 {
+  #ifdef DEBUG
+  printf("开始执行userinit\n");
+  #endif
   struct proc *p;
 
   p = allocproc();
@@ -239,7 +247,7 @@ userinit(void)
   
   // allocate one user page and copy initcode's instructions
   // and data into it.
-  uvmfirst(p->pagetable, initcode, sizeof(initcode));
+  uvmfirst(p->pagetable,p->kpagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
   // prepare for the very first "return" from kernel to user.
@@ -252,6 +260,9 @@ userinit(void)
   p->state = RUNNABLE;
 
   release(&p->lock);
+  #ifdef DEBUG
+  printf("userinit_finished\n");
+  #endif
 }
 
 // Grow or shrink user memory by n bytes.
@@ -444,6 +455,9 @@ wait(uint64 addr)
 void
 scheduler(void)
 {
+  #ifdef DEBUG
+  printf("开始执行scheduler\n");
+  #endif
   struct proc *p;
   struct cpu *c = mycpu();
   
@@ -460,6 +474,10 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        #ifdef DEBUG
+        printf("pid=%d 开始执行swtch\n",p-proc);
+        #endif
+        
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
@@ -514,6 +532,9 @@ yield(void)
 void
 forkret(void)
 {
+  #ifdef DEBUG
+  printf("开始执行forkret\n");
+  #endif
   static int first = 1;
 
   // Still holding p->lock from scheduler.
@@ -525,6 +546,9 @@ forkret(void)
     // be run from main().
     first = 0;
     fsinit(ROOTDEV);
+    #ifdef DEBUG
+    printf("开始执行第一个proc\n");
+    #endif
   }
 
   usertrapret();

@@ -14,6 +14,9 @@ char *argv[] = { "sh", 0 };
 int
 main(void)
 {
+  #ifdef DEBUG
+  printf("进入init.c代码\n");
+  #endif
   int pid, wpid;
 
   if(open("console", O_RDWR) < 0){

@@ -18,7 +18,7 @@ void plicinit(void) {
 	writed(1, PLIC_V + UART_IRQ * sizeof(uint32));
 
 	#ifdef DEBUG 
-	printf("plicinit\n");
+	printf("plicinit_finished\n");
 	#endif 
 }
 
@@ -38,7 +38,7 @@ plicinithart(void)
   *(hart0_m_int_enable_hi) = readd(hart0_m_int_enable_hi) | (1 << (UART_IRQ % 32));
   #endif
   #ifdef DEBUG
-  printf("plicinithart\n");
+  printf("plicinithart_finished\n");
   #endif
 }
 

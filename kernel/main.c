@@ -30,6 +30,7 @@ void
 main(unsigned long hartid, unsigned long dtb_pa)
 {
   inithartid(hartid);
+  // start();
   
   if (hartid == 0) {
     consoleinit();

@@ -56,7 +56,7 @@ binit(void)
     bcache.head.next = b;
   }
   #ifdef DEBUG
-  printf("binit\n");
+  printf("binit_finished\n");
   #endif
 }
 

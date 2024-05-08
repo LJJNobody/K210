@@ -8,7 +8,7 @@
 #include "include/param.h"
 #include "include/fs.h"
 #include "include/spinlock.h"
-#include "include/sleeplock.h"
+#include "include/buf.h"
 #include "include/file.h"
 #include "include/stat.h"
 #include "include/proc.h"
@@ -23,6 +23,13 @@ void
 fileinit(void)
 {
   initlock(&ftable.lock, "ftable");
+  struct file *f;
+  for(f = ftable.file; f < ftable.file + NFILE; f++){
+    memset(f, 0, sizeof(struct file));
+  }
+  #ifdef DEBUG
+  printf("fileinit done\n");
+  #endif
 }
 
 // Allocate a file structure.

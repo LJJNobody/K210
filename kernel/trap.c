@@ -33,13 +33,19 @@ int devintr();
 void
 trapinithart(void)
 {
+  #ifdef DEBUG
+  printf("trapinithart\n");
+  #endif
   w_stvec((uint64)kernelvec);
   w_sstatus(r_sstatus() | SSTATUS_SIE);
   // enable supervisor-mode timer interrupts.
   w_sie(r_sie() | SIE_SEIE | SIE_SSIE | SIE_STIE);
+  #ifdef DEBUG
+  printf("set_next_timeout\n");
+  #endif
   set_next_timeout();
   #ifdef DEBUG
-  printf("trapinithart\n");
+  printf("trapinithart_finished\n");
   #endif
 }
 

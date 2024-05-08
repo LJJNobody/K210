@@ -325,7 +325,7 @@ void sdcard_init(void) {
 		panic("sdcard_init failed");
 	}
 	#ifdef DEBUG
-	printf("sdcard_init\n");
+	printf("sdcard_init_finished\n");
 	#endif
 }
 

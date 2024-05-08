@@ -15,7 +15,11 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
 
-
+void start(void){
+  w_pmpaddr0(0x3fffffffffffffull);
+  w_pmpcfg0(0xf);
+  return;
+}
 
 
 // Initialize the one kernel_pagetable
@@ -80,6 +84,9 @@ kvminit(void)
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  #ifdef DEBUG
+  printf("kvminit_finished\n");
+  #endif
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -88,12 +95,15 @@ void
 kvminithart()
 {
   // wait for any previous writes to the page table memory to finish.
-  sfence_vma();
+  // sfence_vma();
 
   w_satp(MAKE_SATP(kernel_pagetable));
 
   // flush stale entries from the TLB.
   sfence_vma();
+  #ifdef DEBUG
+  printf("kvminithart_finished\n");
+  #endif
 }
 
 // Return the address of the PTE in page table pagetable
@@ -168,6 +178,7 @@ kvmmap(uint64 va, uint64 pa, uint64 sz, int perm)
 int
 mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
+  // printf("开始执行mappages\n");
   uint64 a, last;
   pte_t *pte;
 
@@ -187,6 +198,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
     a += PGSIZE;
     pa += PGSIZE;
   }
+  // printf("mappages done\n");
   return 0;
 }
 
@@ -234,16 +246,25 @@ uvmcreate()
 // for the very first process.
 // sz must be less than a page.
 void
-uvmfirst(pagetable_t pagetable, uchar *src, uint sz)
+uvmfirst(pagetable_t pagetable,pagetable_t kpagetable, uchar *src, uint sz)
 {
+  #ifdef DEBUG
+  printf("开始执行uvmfirst\n");
+  #endif
   char *mem;
 
   if(sz >= PGSIZE)
     panic("uvmfirst: more than a page");
   mem = kalloc();
+  printf("kalloc done\n");
   memset(mem, 0, PGSIZE);
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
+  // mappages(kpagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X);
+  printf("map done\n");
   memmove(mem, src, sz);
+  #ifdef DEBUG
+  printf("uvmfirst_done\n");
+  #endif
 }
 
 // Allocate PTEs and physical memory to grow process from oldsz to
