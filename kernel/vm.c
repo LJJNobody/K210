@@ -259,7 +259,7 @@ uvmfirst(pagetable_t pagetable,pagetable_t kpagetable, uchar *src, uint sz)
   printf("kalloc done\n");
   memset(mem, 0, PGSIZE);
   mappages(pagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X|PTE_U);
-  // mappages(kpagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X);
+  mappages(kpagetable, 0, PGSIZE, (uint64)mem, PTE_W|PTE_R|PTE_X);
   printf("map done\n");
   memmove(mem, src, sz);
   #ifdef DEBUG

@@ -199,6 +199,11 @@ int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 
+pagetable_t     proc_kpagetable(void);
+void            kvmfree(pagetable_t kpagetable, int stack_free);
+void            vmunmap(pagetable_t, uint64, uint64, int);
+void            kvmfreeusr(pagetable_t kpt);
+
 // uint64          uvmalloc(pagetable_t, uint64, uint64);
 uint64          uvmalloc(pagetable_t, uint64, uint64, int);
 

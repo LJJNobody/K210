@@ -20,6 +20,8 @@ static void freeproc(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
+extern pagetable_t kernel_pagetable;
+
 // helps ensure that wakeups of wait()ing
 // parents are not lost. helps obey the
 // memory model when using p->parent.
@@ -54,7 +56,7 @@ procinit(void)
   for(p = proc; p < &proc[NPROC]; p++) {
       initlock(&p->lock, "proc");
       p->state = UNUSED;
-      p->kstack = KSTACK;
+      p->kstack = VKSTACK;
       // p->kstack = KSTACK((int) (p - proc));
   }
   memset(cpus, 0, sizeof(cpus));
@@ -138,13 +140,18 @@ found:
   }
 
   // An empty user page table.
-  p->pagetable = proc_pagetable(p);
-  if(p->pagetable == 0){
+  // p->pagetable = proc_pagetable(p);
+  // if(p->pagetable == 0){
+  //   freeproc(p);
+  //   release(&p->lock);
+  //   return 0;
+  // }
+  if ((p->pagetable = proc_pagetable(p)) == NULL ||
+      (p->kpagetable = proc_kpagetable()) == NULL) {
     freeproc(p);
     release(&p->lock);
-    return 0;
+    return NULL;
   }
-
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -208,6 +215,99 @@ proc_pagetable(struct proc *p)
   }
 
   return pagetable;
+}
+
+// initialize kernel pagetable for each process.
+pagetable_t
+proc_kpagetable()
+{
+  pagetable_t kpt = (pagetable_t) kalloc();
+  if (kpt == NULL)
+    return NULL;
+  memmove(kpt, kernel_pagetable, PGSIZE);
+
+  // remap stack and trampoline, because they share the same page table of level 1 and 0
+  char *pstack = kalloc();
+  if(pstack == NULL)
+    goto fail;
+  if (mappages(kpt, VKSTACK, PGSIZE, (uint64)pstack, PTE_R | PTE_W) != 0)
+    goto fail;
+  
+  return kpt;
+
+fail:
+  kvmfree(kpt, 1);
+  return NULL;
+}
+
+void
+kvmfree(pagetable_t kpt, int stack_free)
+{
+  if (stack_free) {
+    vmunmap(kpt, VKSTACK, 1, 1);
+    pte_t pte = kpt[PX(2, VKSTACK)];
+    if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+      kfreewalk((pagetable_t) PTE2PA(pte));
+    }
+  }
+  kvmfreeusr(kpt);
+  kfree(kpt);
+}
+
+void
+kvmfreeusr(pagetable_t kpt)
+{
+  pte_t pte;
+  for (int i = 0; i < PX(2, MAXUVA); i++) {
+    pte = kpt[i];
+    if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+      kfreewalk((pagetable_t) PTE2PA(pte));
+      kpt[i] = 0;
+    }
+  }
+}
+
+// only free page table, not physical pages
+void
+kfreewalk(pagetable_t kpt)
+{
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = kpt[i];
+    if ((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0) {
+      kfreewalk((pagetable_t) PTE2PA(pte));
+      kpt[i] = 0;
+    } else if (pte & PTE_V) {
+      break;
+    }
+  }
+  kfree((void *) kpt);
+}
+
+// Remove npages of mappings starting from va. va must be
+// page-aligned. The mappings must exist.
+// Optionally free the physical memory.
+void
+vmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
+{
+  uint64 a;
+  pte_t *pte;
+
+  if((va % PGSIZE) != 0)
+    panic("vmunmap: not aligned");
+
+  for(a = va; a < va + npages*PGSIZE; a += PGSIZE){
+    if((pte = walk(pagetable, a, 0)) == 0)
+      panic("vmunmap: walk");
+    if((*pte & PTE_V) == 0)
+      panic("vmunmap: not mapped");
+    if(PTE_FLAGS(*pte) == PTE_V)
+      panic("vmunmap: not a leaf");
+    if(do_free){
+      uint64 pa = PTE2PA(*pte);
+      kfree((void*)pa);
+    }
+    *pte = 0;
+  }
 }
 
 // Free a process's page table, and free the
@@ -458,6 +558,7 @@ scheduler(void)
   #ifdef DEBUG
   printf("开始执行scheduler\n");
   #endif
+  extern pagetable_t kernel_pagetable;
   struct proc *p;
   struct cpu *c = mycpu();
   
@@ -474,12 +575,16 @@ scheduler(void)
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        w_satp(MAKE_SATP(p->kpagetable));
+        sfence_vma();
         #ifdef DEBUG
         printf("pid=%d 开始执行swtch\n",p-proc);
         #endif
         
         swtch(&c->context, &p->context);
 
+        w_satp(MAKE_SATP(kernel_pagetable));
+        sfence_vma();
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
