@@ -1,7 +1,7 @@
 #ifndef __BUF_H
 #define __BUF_H
 
-#define BSIZE 512
+#define BSIZE 1024
 
 #include "sleeplock.h"
 

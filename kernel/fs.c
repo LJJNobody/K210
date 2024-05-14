@@ -32,16 +32,26 @@ readsb(int dev, struct superblock *sb)
   struct buf *bp;
 
   bp = bread(dev, 1);
+  printf("bread done\n");
   memmove(sb, bp->data, sizeof(*sb));
   brelse(bp);
+  printf("sb->magic=%d\n size=%d\n nblocks=%d\n nlog=%d\n logstart=%d\n inodestart=%d\n bmapstart=%d\n",\
+    sb->magic,sb->size,sb->nblocks,sb->nlog,sb->logstart,sb->inodestart,sb->bmapstart);
 }
 
 // Init fs
 void
 fsinit(int dev) {
   readsb(dev, &sb);
-  if(sb.magic != FSMAGIC)
+  printf("readsb done\n");
+  if(sb.magic != FSMAGIC){
+    printf("%p\n",sb.magic);
     panic("invalid file system");
+  }
+  #ifdef DEBUG
+  printf("magic is correct\n");
+  #endif
+  
   initlog(dev, &sb);
 }
 
@@ -302,6 +312,9 @@ ilock(struct inode *ip)
   if(ip->valid == 0){
     bp = bread(ip->dev, IBLOCK(ip->inum, sb));
     dip = (struct dinode*)bp->data + ip->inum%IPB;
+    // #ifdef DEBUG
+    // printf("dip->size=%d\n",dip->size);
+    // #endif
     ip->type = dip->type;
     ip->major = dip->major;
     ip->minor = dip->minor;
@@ -310,8 +323,12 @@ ilock(struct inode *ip)
     memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
     brelse(bp);
     ip->valid = 1;
-    if(ip->type == 0)
+    if(ip->type == 0){
+      #ifdef DEBUG
+      printf("bp->sectorno = %d, bp->refcnt = %d bp->dev=%d ip->inum=%d ip->ref=%d \n",bp->sectorno,bp->refcnt,bp->dev,ip->inum,ip->ref);
+      #endif
       panic("ilock: no type");
+    }
   }
 }
 

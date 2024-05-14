@@ -8,7 +8,7 @@
 #include "include/dmac.h"
 #include "include/spi.h"
 #include "include/sdcard.h"
-
+int bSIZE=512;
 void SD_CS_HIGH(void) {
     gpiohs_set_pin(7, GPIO_PV_HIGH);
 }
@@ -42,8 +42,11 @@ static void sd_write_data_dma(uint8 const *data_buff, uint32 length) {
 }
 
 static void sd_read_data_dma(uint8 *data_buff, uint32 length) {
+	// printf("begin sd_read_data_dma\n");
     spi_init(SPI_DEVICE_0, SPI_WORK_MODE_0, SPI_FF_STANDARD, 8, 0);
+	// printf("spi_init done\n");
 	spi_receive_data_standard_dma(-1, DMAC_CHANNEL0, SPI_DEVICE_0, SPI_CHIP_SELECT_3, NULL, 0, data_buff, length);
+	// printf("end sd_read_data_dma\n");
 }
 
 /*
@@ -244,8 +247,8 @@ static int check_block_size(void) {
 		if (0 == result) {
 			if (ocr[0] & 0x40) {
 				printf("SDHC/SDXC detected\n");
-				if (512 != BSIZE) {
-					printf("BSIZE != 512\n");
+				if (512 != bSIZE) {
+					printf("bSIZE != 512\n");
 					return 0xff;
 				}
 
@@ -254,11 +257,11 @@ static int check_block_size(void) {
 			else {
 				printf("SDSC detected, setting block size\n");
 
-				// setting SD card block size to BSIZE 
+				// setting SD card block size to bSIZE 
 				int timeout = 0xff;
 				int result = 0xff;
 				while (--timeout) {
-					sd_send_cmd(SD_CMD16, BSIZE, 0);
+					sd_send_cmd(SD_CMD16, bSIZE, 0);
 					result = sd_get_response_R1();
 					sd_end_cmd();
 
@@ -334,9 +337,9 @@ void sdcard_read_sector(uint8 *buf, int sectorno) {
 	uint32 address;
 	uint8 dummy_crc[2];
 
-	#ifdef DEBUG
-	printf("sdcard_read_sector()\n");
-	#endif
+	// #ifdef DEBUG
+	// printf("sdcard_read_sector()\n");
+	// #endif
 
 	if (is_standard_sd) {
 		address = sectorno << 9;
@@ -347,11 +350,9 @@ void sdcard_read_sector(uint8 *buf, int sectorno) {
 
 	// enter critical section!
 	acquiresleep(&sdcard_lock);
-
 	sd_send_cmd(SD_CMD17, address, 0);
 	// printf("%p\n",address);
 	result = sd_get_response_R1();
-
 	if (0 != result) {
 		// printf("%d",result);
 		releasesleep(&sdcard_lock);
@@ -363,15 +364,20 @@ void sdcard_read_sector(uint8 *buf, int sectorno) {
 		sd_read_data(&result, 1);
 		if (0xfe == result) break;
 	}
+	// printf("sd_read_data done\n");
 	if (0 == timeout) {
 		panic("sdcard: timeout waiting for reading");
 	}
-	sd_read_data_dma(buf, BSIZE);
+	sd_read_data_dma(buf, bSIZE);
+	// printf("sd_read_data_dma done\n");
 	sd_read_data(dummy_crc, 2);
+	// printf("sd_read_data done\n");
 
 	sd_end_cmd();
-
+	// printf("releasesleep begin\n");
 	releasesleep(&sdcard_lock);
+	// printf("sdcard read sector done\n");
+	// printf("-----------\n");
 	// leave critical section!
 }
 
@@ -380,9 +386,9 @@ void sdcard_write_sector(uint8 *buf, int sectorno) {
 	static uint8 const START_BLOCK_TOKEN = 0xfe;
 	uint8 dummy_crc[2] = {0xff, 0xff};
 
-	#ifdef DEBUG
-	printf("sdcard_write_sector()\n");
-	#endif
+	// #ifdef DEBUG
+	// printf("sdcard_write_sector()\n");
+	// #endif
 
 	if (is_standard_sd) {
 		address = sectorno << 9;
@@ -402,7 +408,7 @@ void sdcard_write_sector(uint8 *buf, int sectorno) {
 
 	// sending data to be written 
 	sd_write_data(&START_BLOCK_TOKEN, 1);
-	sd_write_data_dma(buf, BSIZE);
+	sd_write_data_dma(buf, bSIZE);
 	sd_write_data(dummy_crc, 2);
 
 	// waiting for sdcard to finish programming 
@@ -445,25 +451,27 @@ void sdcard_write_sector(uint8 *buf, int sectorno) {
 
 	releasesleep(&sdcard_lock);
 	// leave critical section!
+	// printf("sdcard write sector done\n");
+	// printf("-----------\n");
 }
 
 // A simple test for sdcard read/write test 
 void test_sdcard(void) {
-	uint8 buf[BSIZE];
+	uint8 buf[bSIZE];
 
 	for (int sec = 0; sec < 5; sec ++) {
-		for (int i = 0; i < BSIZE; i ++) {
+		for (int i = 0; i < bSIZE; i ++) {
 			buf[i] = 0xaa;		// data to be written 
 		}
 
 		sdcard_write_sector(buf, sec);
 
-		for (int i = 0; i < BSIZE; i ++) {
+		for (int i = 0; i < bSIZE; i ++) {
 			buf[i] = 0xff;		// fill in junk
 		}
 
 		sdcard_read_sector(buf, sec);
-		for (int i = 0; i < BSIZE; i ++) {
+		for (int i = 0; i < bSIZE; i ++) {
 			if (0 == i % 16) {
 				printf("\n");
 			}

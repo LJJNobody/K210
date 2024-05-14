@@ -131,10 +131,14 @@ static uint64 (*syscalls[])(void) = {
 void
 syscall(void)
 {
+  
   int num;
   struct proc *p = myproc();
 
   num = p->trapframe->a7;
+  #ifdef DEBUG
+  // printf("begin syscall %d\n",num);
+  #endif
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     // Use num to lookup the system call function for num, call it,
     // and store its return value in p->trapframe->a0
@@ -144,4 +148,7 @@ syscall(void)
             p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
+  #ifdef DEBUG
+  // printf("syscall done\n");
+  #endif
 }

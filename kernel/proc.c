@@ -573,6 +573,7 @@ scheduler(void)
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
+        printf("hart%d找到\n",r_tp());
         p->state = RUNNING;
         c->proc = p;
         w_satp(MAKE_SATP(p->kpagetable));

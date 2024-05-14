@@ -32,5 +32,5 @@ void timer_tick() {
     wakeup(&ticks);
     release(&tickslock);
     set_next_timeout();
-    printf("timer_ticks\n");
+    // printf("timer_ticks\n");
 }

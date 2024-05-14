@@ -15,15 +15,21 @@ initlock(struct spinlock *lk, char *name)
   lk->locked = 0;
   lk->cpu = 0;
 }
-
+extern int started;
 // Acquire the lock.
 // Loops (spins) until the lock is acquired.
 void
 acquire(struct spinlock *lk)
 {
+  // printf("start_acquire\n");
+  
   push_off(); // disable interrupts to avoid deadlock.
   if(holding(lk))
+  {
+    printf("sepc=%p stval=%p hart=%d\n", r_sepc(), r_stval(), r_tp());
+    printf("lock %s\n",lk->name);
     panic("acquire");
+  }
 
   // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
   //   a5 = 1
@@ -40,6 +46,10 @@ acquire(struct spinlock *lk)
 
   // Record info about lock acquisition for holding() and debugging.
   lk->cpu = mycpu();
+  // if(started==1 && (!strncmp(lk->name,"proc",sizeof(lk->name))) && r_tp()==0){
+  //   printf("hart%d拿到锁\n",r_tp());
+  //   backtrace();
+  // }
 }
 
 // Release the lock.
@@ -69,6 +79,10 @@ release(struct spinlock *lk)
   __sync_lock_release(&lk->locked);
 
   pop_off();
+  // if(started==1 && (!strncmp(lk->name,"proc",sizeof(lk->name))) && r_tp()==0){
+  //   printf("hart%d拿到锁\n",r_tp());
+  //   backtrace();
+  // }
 }
 
 // Check whether this cpu is holding the lock.

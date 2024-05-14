@@ -24,7 +24,7 @@ static inline void inithartid(unsigned long hartid) {
   asm volatile("mv tp, %0" : : "r" (hartid & 0x1));
 }
 
-volatile static int started = 0;
+volatile int started = 0;
 
 void
 main(unsigned long hartid, unsigned long dtb_pa)
